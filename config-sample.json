@@ -1,0 +1,34 @@
+{
+  "PORT": 8199,
+  "GITHUB_SECRET" : "",
+  "GITHUB_AUTOMATED_BUILD_MESSAGE": "Automated travis build",
+  "PROJECTS": {
+    "github": {
+      "hexcodech/booki-frontend": {
+        "type": "git-folder",
+        "branch": "dev",
+        "repo_path": "build/",
+        "persistent": ["oauth-callback.php", ".well-known"],
+        "path": "/var/www/booki/booki-frontend/"
+      },
+      "hexcodech/booki-dashboard": {
+        "type": "git-folder",
+        "branch": "dev",
+        "repo_path": "build/",
+        "persistent": ["oauth-callback.php", ".well-known"],
+        "path": "/var/www/booki/booki-dashboard/"
+      }
+    },
+    "travis" : {
+      "hexcodech/booki": {
+        "type": "docker-compose",
+        "branch": "dev",
+        "compose_files": ["docker-compose.yml", "docker-compose-dev.yml"],
+        "other_files": ["Dockerfile"],
+        "service_name": "booki-api",
+        "persistent": ["config.json", ".well-known"],
+        "path": "/home/booki/api/"
+      }
+    }
+  }
+}
