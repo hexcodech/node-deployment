@@ -131,7 +131,6 @@ async function setupHandlers() {
 
 function handleProject(projectName, shortName, project) {
 	let tmpDir = tmp.dirSync();
-	let persistentDir = tmp.dirSync();
 
 	console.log(
 		"Cloning " +
@@ -154,7 +153,7 @@ function handleProject(projectName, shortName, project) {
 			".git",
 		(err, stdout, stderr) => {
 			if (err) {
-				cleanUp([tmpDir, persistentDir]);
+				cleanUp([tmpDir]);
 
 				return console.log(err);
 			}
@@ -162,167 +161,107 @@ function handleProject(projectName, shortName, project) {
 			console.log(stdout);
 			console.log(stderr);
 
-			//save some files
-			async.each(
-				project.persistent,
-				(name, callback) => {
-					let folder = path.dirname(
-						path.resolve(persistentDir.name, shortName, name)
-					);
-
-					console.log("Creating folder " + folder);
-					mkdirp(folder, () => {
-						if (err) {
-							cleanUp([tmpDir, persistentDir]);
-
-							return callback(err);
-						}
-						console.log("Copying " + name + " to " + folder);
-						ncp(
-							path.resolve(project.path, name),
-							path.resolve(persistentDir.name, shortName, name),
-							callback
-						);
-					});
-				},
-				err => {
+			//Delete files
+			exec(
+				"find " +
+					project.path +
+					" " +
+					project.persistent
+						.map(name => {
+							return "-not -name '" + name + "' -type f ";
+						})
+						.join(" ") +
+					" -delete",
+				(err, stdout, stderr) => {
 					if (err) {
+						cleanUp([tmpDir]);
 						return console.log(err);
 					}
+					console.log(stdout, stderr);
 
-					console.log("Nuking " + project.path);
-					//delete everything
-					rmdir(project.path, err => {
-						if (err) {
-							cleanUp([tmpDir, persistentDir]);
+					if (project.type === "git-folder") {
+						let folder = path.dirname(
+							path.resolve(project.path, project.repo_path)
+						);
 
-							return console.log(err);
-						}
+						console.log(
+							"Copying " +
+								path.resolve(tmpDir.name, shortName, project.repo_path) +
+								" to " +
+								path.resolve(project.path, project.repo_path)
+						);
 
-						//copy files back
-						async.each(
-							project.persistent,
-							(name, callback) => {
-								let folder = path.dirname(path.resolve(project.path, name));
-
-								console.log("Creating folder " + folder);
-								mkdirp(folder, () => {
-									if (err) {
-										return callback(err);
-									}
-									console.log("Restoring " + name + " to " + folder);
-									ncp(
-										path.resolve(persistentDir.name, shortName, name),
-										path.resolve(project.path, name),
-										callback
-									);
-								});
-							},
+						ncp(
+							path.resolve(tmpDir.name, shortName, project.repo_path),
+							path.resolve(project.path),
 							err => {
 								if (err) {
-									cleanUp([tmpDir, persistentDir]);
+									cleanUp([tmpDir]);
 
 									return console.log(err);
 								}
 
-								if (project.type === "git-folder") {
-									let folder = path.dirname(
-										path.resolve(project.path, project.repo_path)
-									);
+								cleanUp([tmpDir]);
+							}
+						);
+					} else if (project.type === "docker-compose") {
+						async.each(
+							[...project.compose_files, ...project.other_files],
+							(name, callback) => {
+								console.log("Copying " + name + " to " + project.path);
+								ncp(
+									path.resolve(tmpDir.name, shortName, name),
+									path.resolve(project.path, name),
+									callback
+								);
+							},
+							err => {
+								if (err) {
+									cleanUp([tmpDir]);
+									return console.log(err);
+								}
 
-									console.log("Creating folder " + folder);
-
-									mkdirp(folder, () => {
+								//not escaping as only "trusted" variables are used
+								exec(
+									"cd " +
+										project.path +
+										" && docker-compose" +
+										project.compose_files.reduce((a, b) => {
+											return a + " -f " + b;
+										}, "") +
+										" pull",
+									(err, stdout, stderr) => {
 										if (err) {
-											return callback(err);
+											cleanUp([tmpDir]);
+											return console.log(err);
 										}
 
-										console.log(
-											"Copying " +
-												path.resolve(
-													tmpDir.name,
-													shortName,
-													project.repo_path
-												) +
-												" to " +
-												path.resolve(project.path, project.repo_path)
-										);
-
-										ncp(
-											path.resolve(tmpDir.name, shortName, project.repo_path),
-											path.resolve(project.path),
-											err => {
+										exec(
+											"cd " +
+												project.path +
+												" && docker-compose" +
+												project.compose_files.reduce((a, b) => {
+													return a + " -f " + b;
+												}, "") +
+												" up -d " +
+												project.service_name,
+											(err, stdout, stderr) => {
 												if (err) {
-													cleanUp([tmpDir, persistentDir]);
-
+													cleanUp([tmpDir]);
 													return console.log(err);
 												}
 
-												cleanUp([tmpDir, persistentDir]);
+												console.log(stdout);
+												console.log(stderr);
+
+												cleanUp([tmpDir]);
 											}
 										);
-									});
-								} else if (project.type === "docker-compose") {
-									async.each(
-										[...project.compose_files, ...project.other_files],
-										(name, callback) => {
-											console.log("Copying " + name + " to " + project.path);
-											ncp(
-												path.resolve(tmpDir.name, shortName, name),
-												path.resolve(project.path, name),
-												callback
-											);
-										},
-										err => {
-											if (err) {
-												cleanUp([tmpDir, persistentDir]);
-												return console.log(err);
-											}
-
-											//not escaping as only "trusted" variables are used
-											exec(
-												"cd " +
-													project.path +
-													" && docker-compose" +
-													project.compose_files.reduce((a, b) => {
-														return a + " -f " + b;
-													}, "") +
-													" pull",
-												(err, stdout, stderr) => {
-													if (err) {
-														cleanUp([tmpDir, persistentDir]);
-														return console.log(err);
-													}
-
-													exec(
-														"cd " +
-															project.path +
-															" && docker-compose" +
-															project.compose_files.reduce((a, b) => {
-																return a + " -f " + b;
-															}, "") +
-															" up -d " +
-															project.service_name,
-														(err, stdout, stderr) => {
-															if (err) {
-																cleanUp([tmpDir, persistentDir]);
-																return console.log(err);
-															}
-
-															console.log(stdout);
-															console.log(stderr);
-
-															cleanUp([tmpDir, persistentDir]);
-														}
-													);
-												}
-											);
-										}
-									);
-								}
+									}
+								);
 							}
 						);
-					});
+					}
 				}
 			);
 		}

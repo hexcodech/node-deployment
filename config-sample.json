@@ -26,7 +26,7 @@
         "compose_files": ["docker-compose.yml", "docker-compose-dev.yml"],
         "other_files": ["Dockerfile"],
         "service_name": "booki-api",
-        "persistent": ["config.json", ".well-known"],
+        "persistent": ["config.json", ".well-known", "uploads"],
         "path": "/home/booki/api/"
       }
     }
