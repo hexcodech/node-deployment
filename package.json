@@ -5,10 +5,13 @@
   "author": "Tyratox (Nico Hauser)",
   "license": "MIT",
   "scripts": {
-    "start": "node index.js"
+    "start": "node hooks.js",
+    "docker-watcher": "node docker-watcher.js"
   },
   "dependencies": {
     "async": "^2.4.1",
+    "chokidar": "^1.7.0",
+    "debounce": "^1.0.2",
     "github-webhook-handler": "^0.6.0",
     "mkdirp": "^0.5.1",
     "ncp": "^2.0.0",

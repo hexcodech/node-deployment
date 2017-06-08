@@ -221,44 +221,8 @@ function handleProject(projectName, shortName, project) {
 									return console.log(err);
 								}
 
-								//not escaping as only "trusted" variables are used
-								exec(
-									"cd " +
-										project.path +
-										" && docker-compose" +
-										project.compose_files.reduce((a, b) => {
-											return a + " -f " + b;
-										}, "") +
-										" pull",
-									(err, stdout, stderr) => {
-										if (err) {
-											cleanUp([tmpDir]);
-											return console.log(err);
-										}
-
-										exec(
-											"cd " +
-												project.path +
-												" && docker-compose" +
-												project.compose_files.reduce((a, b) => {
-													return a + " -f " + b;
-												}, "") +
-												" up -d " +
-												project.service_name,
-											(err, stdout, stderr) => {
-												if (err) {
-													cleanUp([tmpDir]);
-													return console.log(err);
-												}
-
-												console.log(stdout);
-												console.log(stderr);
-
-												cleanUp([tmpDir]);
-											}
-										);
-									}
-								);
+								cleanUp([tmpDir]);
+								//we're done here, docker is run by root now
 							}
 						);
 					}
