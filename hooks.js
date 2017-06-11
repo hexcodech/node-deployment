@@ -165,10 +165,10 @@ function handleProject(projectName, shortName, project) {
 			exec(
 				"find " +
 					project.path +
-					" " +
+					" -maxdepth 1 -type f " +
 					project.persistent
 						.map(name => {
-							return "-not -name '" + name + "' -type f ";
+							return "-not -name '" + name + "' ";
 						})
 						.join(" ") +
 					" -delete",
