@@ -47,7 +47,6 @@ const onFileChange = (path, stats) => {
 
 	exec(dockerBase + " pull", (err, stdout, stderr) => {
 		if (err) {
-			cleanUp([tmpDir]);
 			return console.log(err);
 		}
 
